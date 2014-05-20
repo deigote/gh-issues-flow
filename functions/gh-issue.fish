@@ -27,6 +27,26 @@ function gh-issue-update-label
 	end
 end
 
+function gh-issue-update-milestone
+	set issue_no $argv[1]
+	set unclean_milestones (ghi milestone --list | grep -E "[0-9]: ")
+	set -e milestones
+	for i in $unclean_milestones
+		set milestones $milestones (trim $i)
+	end
+	print_msg "Do you want to change the milestone? Select the number and press enter or just press enter to skip this step"
+	set milestone_idx 1 ; for i in $milestones ; echo "["$milestone_idx"] "$i ; set milestone_idx (expr $milestone_idx + 1) ; end
+        set -e milestone_idx
+        read milestone_idx -p 'echo "> "'
+	if test ! -z "$milestone_idx"
+		set milestone_title (echo $milestones[$milestone_idx] | awk -F': ' '{print $2}')
+		set milestone_number (echo $milestones[$milestone_idx] | awk -F': ' '{print $1}')
+		echo "Changing the milestone to '$milestone_title'"
+		ghi edit $issue_no --milestone $milestone_number > /dev/null
+		ghi comment $issue_no -m "milestone changed to '$milestone_title'" > /dev/null
+	end
+end
+
 function gh-issue-flow
 	set action $argv[1]
 	set issue_no $argv[2]
@@ -77,6 +97,8 @@ function gh-issue
 			gh-issue-to-pull-request $argv[2..-1]
 		case update-label
 			gh-issue-update-label $argv[2..-1]
+		case update-milestone
+			gh-issue-update-milestone $argv[2..-1]
 		case flow
 			gh-issue-flow $argv[2..-1]
 	end
