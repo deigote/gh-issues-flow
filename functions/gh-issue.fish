@@ -23,7 +23,6 @@ function gh-issue-update-label
 	if test ! -z "$label_idx" -a "$label_idx" -le (count $labels)
 		echo "Changing the label to '$labels[$label_idx]'"
 		ghi edit $issue_no --label $labels[$label_idx] > /dev/null
-		ghi comment $issue_no -m "Label changed to '$labels[$label_idx]'" > /dev/null
 	end
 end
 
