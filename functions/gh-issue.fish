@@ -42,7 +42,6 @@ function gh-issue-update-milestone
 		set milestone_number (echo $milestones[$milestone_idx] | awk -F': ' '{print $1}')
 		echo "Changing the milestone to '$milestone_title'"
 		ghi edit $issue_no --milestone $milestone_number > /dev/null
-		ghi comment $issue_no -m "milestone changed to '$milestone_title'" > /dev/null
 	end
 end
 
