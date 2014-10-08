@@ -1,14 +1,25 @@
 function gh-issue-to-branch
 	set issue_no $argv[1]
 	set issue_title (ghi show $issue_no | head -n 1 | sed "s/^.$issue_no: //")
+#        set prefix (echo $issue_title | cut -d'/' -f1)
+#        set suffix (echo $issue_title | cut -d'/' -f2-)
+#	echo $issue_title | grep "^$prefix" ; or (set prefix 'feature/' ; and set suffix $issue_title)
+#	echo $prefix
+#	echo $suffix
+#	echo $prefix/(command echo $suffix | tr A-Z a-z | sed -e 's/[^a-zA-Z0-9\-]/-/g' | sed -e 's/^-*//' -e 's/-*$//')-\#$issue_no
 	echo feature/(command echo $issue_title | tr A-Z a-z | sed -e 's/[^a-zA-Z0-9\-]/-/g' | sed -e 's/^-*//' -e 's/-*$//')-\#$issue_no
 end
 
 function gh-issue-to-pull-request
         set issue_no $argv[1]
+	if test (count $argv) -gt 1
+		set master_branch $argv[2]
+	else
+		set master_branch develop
+	end
 	set issue_title (gh-issue-to-branch $issue_no)
 	set origin_remote (git remote -v | grep -E "^origin( |\t)" | grep push | awk '{print $2}' | cut -d':' -f2 | cut -d'/' -f1)
-	set pull_request_cmd "ghi edit $issue_no -H \"$origin_remote\":\"$issue_title\" -b develop"
+	set pull_request_cmd "ghi edit $issue_no -H \"$origin_remote\":\"$issue_title\" -b $master_branch"
 	print_msg "Do you want to updating the issue to a pull request?"
 	execute_on_confirm $pull_request_cmd
 end
@@ -48,6 +59,12 @@ end
 function gh-issue-flow
 	set action $argv[1]
 	set issue_no $argv[2]
+	if test (count $argv) -gt 2
+		set master_branch $argv[3]
+	else
+		set master_branch develop
+	end
+        set origin_branch
         set branch_title (gh-issue-to-branch $issue_no)
 	git show-ref --verify --quiet "refs/heads/$branch_title" ;and set is_new_branch false ;or set is_new_branch true
 
@@ -58,8 +75,9 @@ function gh-issue-flow
 
 	if test $action = 'start' 
 		if test $is_new_branch = 'true'
-			print_msg "Checking out new branch '$branch_title'"
-			git checkout -b "$branch_title"
+			set branch_origin "upstream/"(git branch | grep '*' | awk '{print $2}')
+			print_msg "Creating new branch '$branch_title'"
+			git checkout -b "$branch_title" "$branch_origin"
 			print_msg "Claiming the issue..."
 			ghi edit --claim $issue_no > /dev/null
 			gh-issue-update-label $issue_no
@@ -69,17 +87,17 @@ function gh-issue-flow
 		git push origin "$branch_title" --set-upstream
 		gh-issue-update-label $issue_no
 	else if test $action = 'merge'
-		git checkout develop
+		git checkout $master_branch
 		git merge "$branch_title"
 	else if test $action = 'end'
 		print_msg "Pushing the branch against origin"
 		git push origin "$branch_title"
-		print_msg "Merging the branch into develop and pushing develop against origin"
-		git checkout develop
+		print_msg "Merging the branch into $master_branch and pushing $master_branch against origin"
+		git checkout $master_branch
 		git merge "$branch_title"
-		git push origin develop
+		git push origin $master_branch
 		gh-issue-update-label $issue_no	
-		gh-issue-to-pull-request $issue_no
+		gh-issue-to-pull-request $issue_no $master_branch
 		print_msg "Deleting local branch"
 		git branch -D "$branch_title"
 	else
