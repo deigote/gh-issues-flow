@@ -67,29 +67,37 @@ function gh-issue-flow
 		git checkout "$branch_title"
 	end
 
-	if test $action = 'start' 
+	if test $action = 'start'
 		if test $is_new_branch = 'true'
-			set branch_origin "upstream/"(git branch | grep '*' | awk '{print $2}')
+			git fetch upstream
+			set branch_upstream "upstream/$branch_title"
+			set branch_origin "upstream/$master_branch"
 			print_msg "Creating new branch '$branch_title'"
 			git checkout -b "$branch_title" "$branch_origin"
+			if git branch -a | grep "remotes/$branch_upstream" > /dev/null
+				print_msg "Setting existing remote branch $branch_upstream as upstream branch"
+				git branch --set-upstream-to="$branch_upstream"
+				git pull --ff-only
+			else
+				print_msg "Creating remote branch '$branch_upstream' as upstream branch"
+				git push upstream $branch_title --set-upstream
+			end
 			print_msg "Claiming the issue..."
 			ghi edit --claim $issue_no > /dev/null
 			gh-issue-update-label $issue_no
 		end
 	else if test $action = 'publish' 
 		print_msg "Pushing against origin"
-		git push origin "$branch_title" --set-upstream
+		git push 
 		gh-issue-update-label $issue_no
 	else if test $action = 'merge'
 		git checkout $master_branch
 		git merge "$branch_title"
 	else if test $action = 'end'
-		print_msg "Pushing the branch against origin"
-		git push origin "$branch_title"
+		print_msg "Pushing the branch"
+		git push 
 		print_msg "Merging the branch into $master_branch and pushing $master_branch against origin"
 		git checkout $master_branch
-		git merge "$branch_title"
-		git push origin $master_branch
 		gh-issue-update-label $issue_no	
 		gh-issue-to-pull-request $issue_no $master_branch
 		print_msg "Deleting local branch"
