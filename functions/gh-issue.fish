@@ -1,13 +1,7 @@
 function gh-issue-to-branch
 	set issue_no $argv[1]
 	set issue_title (ghi show $issue_no | head -n 1 | sed "s/^.$issue_no: //")
-#        set prefix (echo $issue_title | cut -d'/' -f1)
-#        set suffix (echo $issue_title | cut -d'/' -f2-)
-#	echo $issue_title | grep "^$prefix" ; or (set prefix 'feature/' ; and set suffix $issue_title)
-#	echo $prefix
-#	echo $suffix
-#	echo $prefix/(command echo $suffix | tr A-Z a-z | sed -e 's/[^a-zA-Z0-9\-]/-/g' | sed -e 's/^-*//' -e 's/-*$//')-\#$issue_no
-	echo feature/(command echo $issue_title | tr A-Z a-z | sed -e 's/[^a-zA-Z0-9\-]/-/g' | sed -e 's/^-*//' -e 's/-*$//')-\#$issue_no
+	echo feature/(command echo $issue_title | tr A-Z a-z | sed -e 's/[^a-zA-Z0-9\-]/-/g' | sed -e 's/^-*//' -e 's/-*$//')-$issue_no
 end
 
 function gh-issue-to-pull-request
@@ -15,11 +9,11 @@ function gh-issue-to-pull-request
 	if test (count $argv) -gt 1
 		set master_branch $argv[2]
 	else
-		set master_branch develop
+		set master_branch master
 	end
 	set issue_title (gh-issue-to-branch $issue_no)
-	set origin_remote (git remote -v | grep -E "^origin( |\t)" | grep push | awk '{print $2}' | cut -d':' -f2 | cut -d'/' -f1)
-	set pull_request_cmd "ghi edit $issue_no -H \"$origin_remote\":\"$issue_title\" -b $master_branch"
+	set upstream_remote (git remote -v | grep -E "^upstream( |\t)" | grep push | awk '{print $2}' | cut -d':' -f2 | cut -d'/' -f1)
+	set pull_request_cmd "ghi edit $issue_no -H \"$upstream_remote\":\"$issue_title\" -b $master_branch"
 	print_msg "Do you want to updating the issue to a pull request?"
 	execute_on_confirm $pull_request_cmd
 end
@@ -62,7 +56,7 @@ function gh-issue-flow
 	if test (count $argv) -gt 2
 		set master_branch $argv[3]
 	else
-		set master_branch develop
+		set master_branch master
 	end
         set origin_branch
         set branch_title (gh-issue-to-branch $issue_no)
